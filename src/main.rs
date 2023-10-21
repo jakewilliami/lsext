@@ -5,10 +5,13 @@ use tabular::{row, Table};
 
 // TODO: Proportion (in percentage of bytes)
 // TODO: `file` to get type of file rather than extension?
-// TODO: aggregate less than value/summary (see dutree)
 
 #[derive(Parser)]
-#[command(name = "lsext", author = crate_authors!("\n"), version = crate_version!())]
+#[command(
+    name = "lsext",
+    author = crate_authors!("\n"),
+    version = crate_version!()
+)]
 /// Summary of files by extension
 ///
 /// Recurse files from a directory, and list them by extension frequency.
@@ -18,9 +21,10 @@ struct Cli {
     /// Defaults to the current directory
     #[arg(
         action = ArgAction::Set,
-        num_args = 1,
+        num_args = 0..=1,
         value_parser = value_parser!(String),
         value_name = "dir",
+        default_missing_value = ".",
     )]
     dir: Option<String>,
 
@@ -34,6 +38,20 @@ struct Cli {
         num_args = 0,
     )]
     all: Option<bool>,
+
+    /// Aggregate extensions whose frequency is smaller n (optional; default: 10)
+    ///
+    /// If the extension appears less than n times (default: 10), then they will be aggregated
+    #[arg(
+        short = 'A',
+        long = "aggr",
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        value_parser = value_parser!(usize),
+        value_name = "n",
+        default_missing_value = "10",
+    )]
+    aggregate: Option<usize>,
 }
 
 fn main() {
@@ -80,10 +98,21 @@ fn main() {
         num_order.then_with(|| a.0.cmp(b.0))
     });
 
-    // Display the count map of extensions
+    // Handle aggregation if relevant
+    let aggr_lim = if let Some(n) = cli.aggregate { n } else { 0 };
+
+    // Construct and display the count map of extensions
     let mut table = Table::new("{:>}  {:<}");
+    let mut aggr_val = 0;
     for (ext, freq) in ext_freqs.iter() {
-        table.add_row(row!(freq, ext.to_str().unwrap()));
+        if aggr_lim == 0 || **freq >= aggr_lim {
+            table.add_row(row!(freq, ext.to_str().unwrap()));
+        } else {
+            aggr_val += **freq;
+        }
+    }
+    if aggr_val > 0 {
+        table.add_row(row!(aggr_val, "<aggregated>"));
     }
     print!("{}", table);
 }
