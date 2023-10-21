@@ -73,12 +73,14 @@ fn main() {
         }
     }
 
-    // Sort extensions by frequency
-    // TODO: secondary sort
+    // Sort extensions by frequency (and then in alphabetical order of extension)
     let mut ext_freqs: Vec<_> = ext_freqs.iter().collect();
-    ext_freqs.sort_by(|a, b| b.1.cmp(a.1));
+    ext_freqs.sort_by(|a, b| {
+        let num_order = b.1.cmp(a.1);
+        num_order.then_with(|| a.0.cmp(b.0))
+    });
 
-    // Display
+    // Display the count map of extensions
     let mut table = Table::new("{:>}  {:<}");
     for (ext, freq) in ext_freqs.iter() {
         table.add_row(row!(freq, ext.to_str().unwrap()));
